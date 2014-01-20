@@ -1,0 +1,38 @@
+--- org.jacoco.build/pom.xml.orig	2013-05-07 14:05:42.250540783 +0200
++++ org.jacoco.build/pom.xml	2013-05-07 14:35:21.511548698 +0200
+@@ -548,28 +547,20 @@
+       </plugin>
+ 
+       <plugin>
+-        <groupId>org.codehaus.groovy.maven</groupId>
+-        <artifactId>gmaven-plugin</artifactId>
++        <!--groupId>org.codehaus.groovy.maven</groupId-->
++        <artifactId>maven-antrun-plugin</artifactId>
+         <executions>
+           <execution>
+             <id>parse-version</id>
+             <phase>validate</phase>
+             <goals>
+-              <goal>execute</goal>
++              <goal>run</goal>
+             </goals>
+             <configuration>
+-              <source>
+-                major = project.properties['parsedVersion.majorVersion']
+-                minor = project.properties['parsedVersion.minorVersion']
+-                incremental = project.properties['parsedVersion.incrementalVersion']
+-                qualifier = "${maven.build.timestamp}"
+-                project.properties['buildQualifier'] = qualifier
+-                project.properties['unqualifiedVersion'] = major + '.' + minor + '.' + incremental
+-                project.properties['qualified.bundle.version'] = project.properties['unqualifiedVersion'] + '.' + project.properties['buildQualifier']
+-                project.properties['build.date'] = qualifier.substring(0, 4) + '/' + qualifier.substring(4, 6) + '/' + qualifier.substring(6, 8)
+-                buildNumber = project.properties['buildNumber']
+-                project.properties['jacoco.runtime.package.name'] = "org.jacoco.agent.rt.internal_" + buildNumber.substring(buildNumber.length() - 7, buildNumber.length())
+-              </source>
++              	<tasks>
++                    <property name="jacoco.runtime.package.name" value="org.jacoco.agent.rt.internal_${randomNumber}" />
++              </tasks>
++              <exportAntProperties>true</exportAntProperties>
+             </configuration>
+           </execution>
+         </executions>
