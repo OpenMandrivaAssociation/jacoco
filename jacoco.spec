@@ -1,39 +1,41 @@
 %{?_javapackages_macros:%_javapackages_macros}
-%global tag 201306030806
+%global tag 201409121644
 
 Name:      jacoco
-Version:   0.6.3
-Release:   5.0%{?dist}
+Version:   0.7.2
+Release:   2%{?dist}
 Summary:   Java Code Coverage for Eclipse 
-
+Group:     System Environment/Libraries
 License:   EPL
 URL:       http://www.eclemma.org/jacoco/
 Source0:   https://github.com/jacoco/jacoco/archive/v%{version}.tar.gz
+Source1:   EnchancedManifest.mf
 
-Patch0:    removeGroovyScripting.patch
+Patch0:    removeUselessBuildParts.patch
 
 BuildArch:        noarch
 
-BuildRequires:    java-devel
-BuildRequires:    jpackage-utils
-BuildRequires:    eclipse-platform >= 1:4.2.0-0.10
-BuildRequires:    eclipse-pde >= 1:4.2.0-0.10
-BuildRequires:    tycho
-BuildRequires:    maven-shade-plugin >= 1.5
-BuildRequires:    maven-enforcer-plugin
-BuildRequires:    maven-dependency-plugin maven-antrun-plugin maven-assembly-plugin maven-clean-plugin maven-compiler-plugin maven-deploy-plugin
-BuildRequires:    maven-install-plugin maven-invoker-plugin maven-gpg-plugin maven-jar-plugin maven-javadoc-plugin maven-plugin-plugin
-BuildRequires:    maven-release-plugin maven-resources-plugin maven-shade-plugin maven-source-plugin maven-surefire-plugin maven-site-plugin
-BuildRequires:    maven-plugin-tools-javadoc
-BuildRequires:	  maven-plugin-build-helper
-BuildRequires:    dos2unix
-%if 0%{?fedora}
-BuildRequires:    fest-assert
-%endif
-BuildRequires:    objectweb-asm4
-Requires:         java >= 1.7
-Requires:         ant
-Requires:         objectweb-asm4
+BuildRequires:  maven-local
+BuildRequires:  mvn(org.apache.ant:ant)
+BuildRequires:  mvn(org.apache.maven:maven-plugin-api)
+BuildRequires:  mvn(org.apache.maven:maven-project)
+BuildRequires:  mvn(org.apache.maven.plugins:maven-antrun-plugin)
+BuildRequires:  mvn(org.apache.maven.plugins:maven-assembly-plugin)
+BuildRequires:  mvn(org.apache.maven.plugins:maven-dependency-plugin)
+BuildRequires:  mvn(org.apache.maven.plugins:maven-enforcer-plugin)
+BuildRequires:  mvn(org.apache.maven.plugins:maven-plugin-plugin)
+BuildRequires:  mvn(org.apache.maven.plugins:maven-shade-plugin)
+BuildRequires:  mvn(org.apache.maven.plugin-tools:maven-plugin-tools-javadoc)
+BuildRequires:  mvn(org.apache.maven.reporting:maven-reporting-api)
+BuildRequires:  mvn(org.apache.maven.reporting:maven-reporting-impl)
+BuildRequires:  mvn(org.apache.maven.shared:file-management)
+BuildRequires:  mvn(org.codehaus.mojo:build-helper-maven-plugin)
+BuildRequires:  mvn(org.codehaus.mojo:buildnumber-maven-plugin)
+BuildRequires:  mvn(org.codehaus.plexus:plexus-utils)
+BuildRequires:  mvn(org.jacoco:org.jacoco.build:pom:)
+BuildRequires:  mvn(org.ow2.asm:asm-debug-all)
+BuildRequires:  dos2unix
+
 
 %description
 JaCoCo is a free code coverage library for Java, 
@@ -44,120 +46,95 @@ from using and integration existing libraries over the last five years.
 %package    javadoc
 Summary:    Java-docs for %{name}
 
-Requires:   %{name} = %{version}-%{release}
-Requires:   jpackage-utils
-
 %description javadoc
 This package contains the API documentation for %{name}.
 
 %package    maven-plugin
 Summary:    A Jacoco plugin for maven
 
-Requires:   java
-Requires:   maven
-Requires:   objectweb-asm4
-Requires:   %{name} = %{version}-%{release}
-
 %description maven-plugin
 A Jacoco plugin for maven.
 
 %prep
 %setup -q 
-%patch0
+%patch0 -p0 -b .sav
 
 %pom_disable_module ../org.jacoco.examples org.jacoco.build
 %pom_disable_module ../org.jacoco.doc org.jacoco.build
 %pom_disable_module ../org.jacoco.tests org.jacoco.build
 %pom_disable_module ../jacoco org.jacoco.build
 
-#%pom_remove_plugin org.apache.maven.plugins:maven-shade-plugin org.jacoco.agent.rt/pom.xml 
-
-# make sure upstream hasn't sneaked in any jars we don't know about
-JARS=""
-for j in `find -name "*.jar"`; do
-  if [ ! -L $j ]; then
-    JARS="$JARS $j"
-  fi
-done
-if [ ! -z "$JARS" ]; then
-   echo "These jars should be deleted and symlinked to system jars: $JARS"
-   exit 1
-fi
+%mvn_package ":jacoco-maven-plugin:{jar,pom}:{}:" maven-plugin
+%mvn_package ":{org.}*:{jar,pom}:runtime:"
 
 %build
-# Note: Tests must be disabled because they introduce circular dependency
-# right now.
-OPTIONS="-DrandomNumber=${RANDOM} -DskipTychoVersionCheck package javadoc:aggregate" 
-
-mvn-rpmbuild $OPTIONS
+%mvn_build
 
 dos2unix org.jacoco.doc/docroot/doc/.resources/doc.css 
 
+# workaround missing premain in agent.rt RH1151442. Not sure where to fix this in build.
+# TODO, fix in build itself
+# 'all' have already premain, 'sources' don't need.
+a=`find org.jacoco.agent.rt/target/ | grep jar | grep -v -e sources -e all`
+for x in $a ; do
+jar -umf %{SOURCE1}  $x
+done;
+
 %install
-install -d -m 755 %{buildroot}%{_javadir}/%{name}
+%mvn_install
 
-for f in    org.jacoco.agent \
-            org.jacoco.ant \
-            org.jacoco.core \
-            org.jacoco.report
-do
-    cp $f/target/$f-%{version}.%{tag}.jar %{buildroot}%{_javadir}/%{name}/$f.jar
-done;
+# ant config
+mkdir -p %{buildroot}%{_sysconfdir}/ant.d
+echo %{name} %{name}/org.jacoco.ant > %{buildroot}%{_sysconfdir}/ant.d/%{name}
 
-cp org.jacoco.agent.rt/target/org.jacoco.agent.rt-%{version}.%{tag}-all.jar %{buildroot}%{_javadir}/%{name}/org.jacoco.agent.rt.jar
-
-# Install maven stuff.
-install -d -m 755 %{buildroot}%{_mavenpomdir}
-install -pm 644 org.jacoco.build/pom.xml %{buildroot}/%{_mavenpomdir}/JPP-%{name}.pom
-%add_maven_depmap JPP-%{name}.pom
-
-for f in    org.jacoco.agent \
-            org.jacoco.agent.rt \
-            org.jacoco.ant \
-            org.jacoco.core \
-            org.jacoco.report
-do
-    install -pm 644 $f/pom.xml %{buildroot}/%{_mavenpomdir}/JPP.%{name}-$f.pom
-    %add_maven_depmap JPP.%{name}-$f.pom %{name}/$f.jar
-done;
-
-# maven plugin
-cp jacoco-maven-plugin/target/jacoco-maven-plugin-%{version}.%{tag}.jar %{buildroot}%{_javadir}/jacoco-maven-plugin.jar
-install -pm 644 jacoco-maven-plugin/pom.xml %{buildroot}/%{_mavenpomdir}/JPP-jacoco-maven-plugin.pom
-%add_maven_depmap JPP-jacoco-maven-plugin.pom jacoco-maven-plugin.jar -f plugin
-
-# javadoc 
-install -d -m 755 %{buildroot}%{_javadocdir}/%{name}
-cp -rf target/site/* %{buildroot}%{_javadocdir}/%{name}
-
-%files
-%{_mavendepmapfragdir}/%{name}
-%{_mavenpomdir}/JPP-%{name}.pom
-#agent
-%{_javadir}/jacoco/org.jacoco.agent.rt.jar
-%{_mavenpomdir}/JPP.%{name}-org.jacoco.agent.rt.pom
-#OSGi bundles
-%{_javadir}/jacoco/org.jacoco.ant.jar
-%{_javadir}/jacoco/org.jacoco.agent.jar
-%{_javadir}/jacoco/org.jacoco.core.jar
-%{_javadir}/jacoco/org.jacoco.report.jar
-%{_mavenpomdir}/JPP.%{name}-org.jacoco.ant.pom
-%{_mavenpomdir}/JPP.%{name}-org.jacoco.agent.pom
-%{_mavenpomdir}/JPP.%{name}-org.jacoco.core.pom
-%{_mavenpomdir}/JPP.%{name}-org.jacoco.report.pom
-
+%files -f .mfiles
+%dir %{_javadir}/%{name}
+%config(noreplace) %{_sysconfdir}/ant.d/%{name}
 %doc org.jacoco.doc/docroot/*
 %doc org.jacoco.doc/about.html
 
-%files maven-plugin
-%{_mavendepmapfragdir}/%{name}-plugin
-%{_javadir}/jacoco-maven-plugin.jar
-%{_mavenpomdir}/JPP-jacoco-maven-plugin.pom
+%files maven-plugin -f .mfiles-maven-plugin
 
-%files javadoc
-%{_javadocdir}/%{name}/
+%files javadoc -f .mfiles-javadoc
 
 %changelog
+* Sat Oct 11 2014 Jiri Vanek <jvanek@redhat.com> 0.7.2-2
+- added premain-class to agent.rt.jar
+- RH1151442
+
+* Mon Sep 15 2014 Alexander Kurtakov <akurtako@redhat.com> 0.7.2-1
+- Update to upstream 0.7.2.
+
+* Fri Jun 13 2014 Michal Srb <msrb@redhat.com> - 0.7.1-5
+- Migrate to %%mvn_install
+
+* Mon Jun 9 2014 Alexander Kurtakov <akurtako@redhat.com> 0.7.1-4
+- Fix FTBFS.
+
+* Sat Jun 07 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.7.1-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
+
+* Mon May 12 2014 Alexander Kurtakov <akurtako@redhat.com> 0.7.1-1
+- Update to 0.7.1.
+
+* Thu Mar 27 2014 Alexander Kurtakov <akurtako@redhat.com> 0.7.0-1
+- Update to upstream version 0.7.0.
+
+* Thu Mar 6 2014 Alexander Kurtakov <akurtako@redhat.com> 0.6.5-1
+- Update to new upstream release.
+- Remove licence check ant call - breaks in rawhide.
+
+* Mon Feb 24 2014 Orion Poplawski <orion@cora.nwra.com> 0.6.4-3
+- Add ant config
+
+* Fri Feb 21 2014 Alexander Kurtakov <akurtako@redhat.com> 0.6.4-2
+- R java-headless.
+- Adapt to new package names.
+- Fix rpmlint warnings.
+
+* Thu Dec 19 2013 Alexander Kurtakov <akurtako@redhat.com> 0.6.4-1
+- Update to 0.6.4 upstream release.
+
 * Sat Aug 03 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.6.3-5
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
 
@@ -214,3 +191,4 @@ cp -rf target/site/* %{buildroot}%{_javadocdir}/%{name}
 
 * Thu May 3 2012 Krzysztof Daniel <kdaniel@redhat.com> 0.5.7-0.1
 - Initial release.
+

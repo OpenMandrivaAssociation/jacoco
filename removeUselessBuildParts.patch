@@ -1,0 +1,82 @@
+--- org.jacoco.build/pom.xml.sav	2014-03-03 23:24:25.000000000 +0200
++++ org.jacoco.build/pom.xml	2014-03-06 19:02:32.807885083 +0200
+@@ -504,43 +504,6 @@
+       </plugin>
+ 
+       <plugin>
+-        <groupId>org.apache.maven.plugins</groupId>
+-        <artifactId>maven-antrun-plugin</artifactId>
+-        <executions>
+-          <execution>
+-            <id>check-license-header</id>
+-            <phase>validate</phase>
+-            <goals>
+-              <goal>run</goal>
+-            </goals>
+-            <configuration>
+-              <target>
+-                <fileset dir="${basedir}" includes="**/*.java,**/*.xml,**/*.bsh" excludes="target/**,.idea/**,nb-configuration.xml" id="missinglicense.fileset">
+-                  <not>
+-                    <and>
+-                      <contains text="Copyright (c) 2009, 2014 Mountainminds GmbH &amp; Co. KG and Contributors"/>
+-                      <contains text="All rights reserved. This program and the accompanying materials"/>
+-                      <contains text="are made available under the terms of the Eclipse Public License v1.0"/>
+-                      <contains text="which accompanies this distribution, and is available at"/>
+-                      <contains text="http://www.eclipse.org/legal/epl-v10.html"/>
+-                    </and>
+-                  </not>
+-                </fileset>
+-                <pathconvert property="missing" refid="missinglicense.fileset"/>
+-                <fail message="Invalid license info in: ${missing}">
+-                  <condition>
+-                    <not>
+-                      <equals arg1="${missing}" arg2=""/>
+-                    </not>
+-                  </condition>
+-                </fail>
+-              </target>
+-            </configuration>
+-          </execution>
+-        </executions>
+-      </plugin>
+-
+-      <plugin>
+         <groupId>org.codehaus.mojo</groupId>
+         <artifactId>build-helper-maven-plugin</artifactId>
+         <executions>
+@@ -574,28 +537,20 @@
+       </plugin>
+ 
+       <plugin>
+-        <groupId>org.codehaus.groovy.maven</groupId>
+-        <artifactId>gmaven-plugin</artifactId>
++        <!--groupId>org.codehaus.groovy.maven</groupId-->
++        <artifactId>maven-antrun-plugin</artifactId>
+         <executions>
+           <execution>
+             <id>parse-version</id>
+             <phase>validate</phase>
+             <goals>
+-              <goal>execute</goal>
++              <goal>run</goal>
+             </goals>
+             <configuration>
+-              <source>
+-                major = project.properties['parsedVersion.majorVersion']
+-                minor = project.properties['parsedVersion.minorVersion']
+-                incremental = project.properties['parsedVersion.incrementalVersion']
+-                qualifier = "${maven.build.timestamp}"
+-                project.properties['buildQualifier'] = qualifier
+-                project.properties['unqualifiedVersion'] = major + '.' + minor + '.' + incremental
+-                project.properties['qualified.bundle.version'] = project.properties['unqualifiedVersion'] + '.' + project.properties['buildQualifier']
+-                project.properties['build.date'] = qualifier.substring(0, 4) + '/' + qualifier.substring(4, 6) + '/' + qualifier.substring(6, 8)
+-                buildNumber = project.properties['buildNumber']
+-                project.properties['jacoco.runtime.package.name'] = "org.jacoco.agent.rt.internal_" + buildNumber.substring(buildNumber.length() - 7, buildNumber.length())
+-              </source>
++              	<tasks>
++                    <property name="jacoco.runtime.package.name" value="org.jacoco.agent.rt.internal_${randomNumber}" />
++              </tasks>
++              <exportAntProperties>true</exportAntProperties>
+             </configuration>
+           </execution>
+         </executions>
