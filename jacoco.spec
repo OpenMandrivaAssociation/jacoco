@@ -5,7 +5,7 @@ Name:      jacoco
 Version:   0.7.2
 Release:   2%{?dist}
 Summary:   Java Code Coverage for Eclipse 
-Group:     System Environment/Libraries
+Group:     System/Libraries
 License:   EPL
 URL:       http://www.eclemma.org/jacoco/
 Source0:   https://github.com/jacoco/jacoco/archive/v%{version}.tar.gz
