@@ -7,7 +7,7 @@ Release:   2%{?dist}
 Summary:   Java Code Coverage for Eclipse 
 Group:     System/Libraries
 License:   EPL
-URL:       http://www.eclemma.org/jacoco/
+URL:       https://www.eclemma.org/jacoco/
 Source0:   https://github.com/jacoco/jacoco/archive/v%{version}.tar.gz
 Source1:   EnchancedManifest.mf
 
